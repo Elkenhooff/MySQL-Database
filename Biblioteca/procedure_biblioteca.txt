@@ -1,0 +1,19 @@
+DELIMITER //
+CREATE PROCEDURE registrar_emprestimo(IN pIDLivro INT, IN pIDUsuario INT, OUT pResultado INT)
+BEGIN
+DECLARE emprestoatual CHAR;
+DECLARE livrosatual INT;
+START TRANSACTION;
+SELECT emprestado INTO emprestoatual FROM livro WHERE IDLIVRO = pIDLivro;
+SELECT COUNT(IDUSUARIO) INTO livrosatual FROM EMPRESTIMO WHERE IDUSUARIO  = pIDUsuario;
+IF emprestoatual = "n" && livrosatual < 3 THEN
+UPDATE livro SET emprestado = 's' WHERE IDLIVRO = pIDLivro;
+INSERT INTO emprestimo (DTRETIRADA, IDUSUARIO, IDLIVRO) VALUES(NOW(),pIDUsuario, pIDLivro);
+COMMIT;
+SET pResultado = 1;
+ELSE
+ROLLBACK;
+SET pResultado = 0;
+END IF;
+END//
+DELIMITER ;
