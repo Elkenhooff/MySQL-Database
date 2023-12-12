@@ -1,0 +1,45 @@
+DROP PROCEDURE IF EXISTS efetuar_compra;
+DELIMITER //
+CREATE PROCEDURE efetuar_compra(IN pIDCLIENTE INT, IN pIDPRODUTO INT, IN pQuantidade INT, OUT pResultado INT)
+BEGIN
+    DECLARE Limite DECIMAL;
+    DECLARE ValorTotal DECIMAL;
+    DECLARE QntdEstoque INT;
+    DECLARE ValorProduto DECIMAL;
+    DECLARE carrinho INT;
+    DECLARE diaatual DATE;
+    DECLARE condicao INT;
+    
+    SELECT ESTOQUE INTO QntdEstoque FROM PRODUTOS WHERE IDPRODUTO = pIDPRODUTO;
+    SELECT CREDITO INTO Limite FROM CLIENTES WHERE IDCLIENTE = pIDCLIENTE;
+    SELECT PRECO INTO ValorProduto FROM PRODUTOS WHERE IDPRODUTO = pIDPRODUTO;
+    
+    SET ValorTotal = ValorProduto * pQuantidade;
+    
+    IF QntdEstoque < pQuantidade THEN
+        SET pResultado = 2;
+    ELSE
+        IF ValorTotal > Limite THEN
+            SET pResultado = 1;
+        ELSE          
+            SELECT NOW() INTO diaatual;
+            SELECT IDVENDA INTO carrinho FROM vendas WHERE DTVENDA = diaatual AND IDCLIENTE = pIDCLIENTE;
+            SELECT COUNT(IDVENDA) INTO condicao FROM vendas WHERE DTVENDA = diaatual AND IDCLIENTE = pIDCLIENTE;
+            
+            IF condicao < 1 THEN
+                INSERT INTO vendas(DTVENDA, IDCLIENTE) VALUES (NOW(), pIDCLIENTE);
+                SET carrinho = LAST_INSERT_ID();
+                INSERT INTO itemvenda (IDVENDA, IDPRODUTO, QUANTIDADE, VALORUNITARIO) VALUES (carrinho, pIDPRODUTO, pQuantidade, ValorProduto);
+                UPDATE produtos SET ESTOQUE = QntdEstoque - pQuantidade WHERE IDPRODUTO = pIDPRODUTO;
+                UPDATE clientes SET CREDITO = Limite - ValorTotal WHERE IDCLIENTE = pIDCLIENTE;
+				SET pResultado = 3;
+            ELSE
+                INSERT INTO itemvenda (IDVENDA, IDPRODUTO, QUANTIDADE, VALORUNITARIO) VALUES (carrinho, pIDPRODUTO, pQuantidade, ValorProduto);
+                UPDATE produtos SET ESTOQUE = QntdEstoque - pQuantidade WHERE IDPRODUTO = pIDPRODUTO;
+                UPDATE clientes SET CREDITO = Limite - ValorTotal WHERE IDCLIENTE = pIDCLIENTE;
+				SET pResultado = 3;
+            END IF;
+        END IF;
+    END IF;
+END//
+DELIMITER ;
